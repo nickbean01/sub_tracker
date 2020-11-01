@@ -18,11 +18,29 @@ def db_connect(db_path=config.DB_PATH):
     return con
 
 
+def add_new_subreddit(sub):
+    try:
+        con = db_connect()
+        c = con.cursor()
+        df = pd.read_sql_query(sql.get_subreddit.format(sub), con)
+        if len(df.index) == 0:
+            print('adding subreddit: {}'.format(sub))
+            c.execute(sql.insert_new_subreddit.format(sub))
+        con.commit()
+    except sqlite3.Error as e:
+        print(e)
+    finally:
+        con.close()
+
+
 def setup_db():
     try:
         con = db_connect()
         c = con.cursor()
-        c.execute(sql.create_active_users_tbl)
+
+        #c.execute(sql.create_subreddits_tbl)
+        #c.execute(sql.create_active_users_tbl)
+
         con.commit()
     except sqlite3.Error as e:
         print(e)
@@ -33,7 +51,10 @@ def setup_db():
 def get_subreddit_data(sub):
     page = requests.get(
         'https://old.reddit.com/r/{}'.format(sub),
-        headers={'User-agent': config.USER_AGENT}
+        headers={
+            'User-agent': config.USER_AGENT,
+            'Cache-Control': 'no-cache'
+        }
     )
     if not page.status_code == 200:
         raise Exception('failed to get subreddit data:\n{}'.format(page.status_code))
@@ -111,6 +132,7 @@ def graph_active_users():
 
 def main():
     #setup_db()
+    #raise Exception()
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--get', action='store_true', required=False)
