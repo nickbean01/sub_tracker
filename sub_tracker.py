@@ -1,6 +1,7 @@
 from bs4 import BeautifulSoup
 
 import argparse
+import config
 import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -49,7 +50,7 @@ def setup_db():
 def get_subreddit_data(sub):
     page = requests.get(
         'https://old.reddit.com/r/{}'.format(sub),
-        headers={'User-agent': ''}
+        headers={'User-agent': config.USER_AGENT}
     )
     if not page.status_code == 200:
         raise Exception('failed to get subreddit data:\n{}'.format(page.status_code))
@@ -94,13 +95,7 @@ def get_subreddit_info(sub):
 
 
 def track_active_users():
-    subs = [
-        'anime_titties',
-        'collapse',
-        'futurology',
-        'politics'
-    ]
-    for sub in subs:
+    for sub in config.SUBREDDITS:
         get_subreddit_info(sub)
 
 
