@@ -1,7 +1,6 @@
 from bs4 import BeautifulSoup
 
 import argparse
-import config
 import datetime
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -10,27 +9,11 @@ import requests
 import seaborn as sns
 import sqlite3
 
-
-DEFAULT_DB_PATH = 'collapse_tracker.db'
-
-
-create_active_users_tbl = '''
-CREATE TABLE active_users(
-id INTEGER PRIMARY KEY,
-num_active_users INTEGER,
-subreddit TEXT,
-timestamp TEXT
-)
-'''
-
-insert_to_active_users = '''
-INSERT INTO active_users
-(num_active_users, subreddit, timestamp)
-VALUES ({}, "{}", "{}")
-'''
+import config
+import sql
 
 
-def db_connect(db_path=DEFAULT_DB_PATH):
+def db_connect(db_path=config.DB_PATH):
     con = sqlite3.connect(db_path)
     return con
 
@@ -39,7 +22,7 @@ def setup_db():
     try:
         con = db_connect()
         c = con.cursor()
-        c.execute(create_active_users_tbl)
+        c.execute(sql.create_active_users_tbl)
         con.commit()
     except sqlite3.Error as e:
         print(e)
@@ -68,7 +51,7 @@ def insert_active_users(num_users, sub, ts):
     try:
         con = db_connect()
         c = con.cursor()
-        c.execute(insert_to_active_users.format(num_users, sub, ts))
+        c.execute(sql.insert_to_active_users.format(num_users, sub, ts))
         con.commit()
     except sqlite3.Error as e:
         print(e)
