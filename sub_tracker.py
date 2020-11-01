@@ -49,7 +49,7 @@ def setup_db():
 def get_subreddit_data(sub):
     page = requests.get(
         'https://old.reddit.com/r/{}'.format(sub),
-        headers={'User-agent': 'collapse-tracker'}
+        headers={'User-agent': ''}
     )
     if not page.status_code == 200:
         raise Exception('failed to get subreddit data:\n{}'.format(page.status_code))
