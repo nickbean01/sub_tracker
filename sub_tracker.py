@@ -13,6 +13,21 @@ import config
 import sql
 
 
+def db_transaction(func):
+    def wrapper():
+        try:
+            con = db_connect()
+            c = con.cursor()
+            func()
+        except sqlite3.Error as e:
+            print(e)
+        finally:
+            if con:
+                con.close()
+    return wrapper
+
+
+
 def db_connect(db_path=config.DB_PATH):
     con = sqlite3.connect(db_path)
     return con
@@ -68,11 +83,65 @@ def get_cached_data():
     return soup
 
 
-def insert_active_users(num_users, sub, ts):
+def get_num_active_users(soup):
+    ''' find number of active users by searching for
+    <p class="users-online"><span class="number"></span</p>
+
+    Parameters:
+        soup (BeautifulSoup): html from a subreddit
+    Returns:
+        (int): number of active users on a subreddit
+    '''
+    span = soup.findAll('p', {'class': 'users-online'})[0] \
+        .findAll('span', {'class': 'number'})[0]
+    return int(float(span.text.strip().replace(',', '')))
+
+
+def get_num_subscribers(soup):
+    ''' find number of subscribers
+
+    Parameters:
+        soup (BeautifulSoup): html from a subreddit
+    Returns:
+        (int): number of active users on a subreddit
+    '''
+    span = soup.findAll('span', {'class': 'subscribers'})[0] \
+        .findAll('span', {'class': 'number'})[0]
+    return int(float(span.text.strip().replace(',', '')))
+
+
+def get_subreddit_info(sub):
+    ''' get number of active users, and subscribers of a subreddit
+    data currently stored in sqlite
+
+    Parameters:
+        sub (str): name of a subreddit
+    '''
+    ts = datetime.datetime.utcnow().isoformat()
+
+    soup = get_subreddit_data(sub=sub)
     try:
         con = db_connect()
         c = con.cursor()
-        c.execute(sql.insert_to_active_users.format(num_users, sub, ts))
+
+        # get subreddit_id from subreddits table
+        sub_df = pd.read_sql_query(sql.get_subreddit.format(sub), con)
+        if len(sub_df.index) == 0:
+            insert_new_subreddit()
+            sub_df = pd.read_sql_query(sql.get_subreddit.format(sub), con)
+        sub_id = sub_df.iloc[0, 0]
+
+        num_users = get_num_active_users(soup)
+        num_subscribers = get_num_subscribers(soup)
+
+        print('{} of {} in subreddit {}({}) at {}'.format(
+            num_users, num_subscribers, sub, sub_id, ts
+        ))
+
+        # insert new record to active_users table
+        c.execute(sql.insert_to_sub_info.format(
+            num_users, num_subscribers, sub_id, ts
+        ))
         con.commit()
     except sqlite3.Error as e:
         print(e)
@@ -81,44 +150,19 @@ def insert_active_users(num_users, sub, ts):
             con.close()
 
 
-def get_subreddit_info(sub):
-    ts = datetime.datetime.utcnow().isoformat()
-
-    soup = get_subreddit_data(sub=sub)
-
-    users_online = soup.findAll('p', {'class': 'users-online'})[0]
-    users_online_span = users_online.findAll('span', {'class': 'number'})[0]
-    num_text = users_online_span.text.strip().replace(',', '')
-    num_active_users = int(float(num_text))
-
-    print('{} in subreddit {} at {}'.format(
-        num_active_users, sub, ts
-    ))
-
-    insert_active_users(num_active_users, sub, ts)
-
-
 def track_active_users():
     for sub in config.SUBREDDITS:
         get_subreddit_info(sub)
 
 
 def graph_active_users():
-    q = '''SELECT num_active_users, subreddit, timestamp
-        FROM active_users;
-    '''
     try:
         con = db_connect()
-        df = pd.read_sql_query(q.format(), con)
-
-        #pprint.pprint(df)
-        #print(df.dtypes)
+        df = pd.read_sql_query(sql.get_subreddit_info, con)
 
         df['dt'] = pd.to_datetime(df['timestamp'])
 
-        #pprint.pprint(df)
-        #print(df.dtypes)
-        df.to_csv('active_users.csv')
+        df.to_csv('subreddit_info.csv')
 
         sns.set_style("darkgrid")
         sns.lineplot(x='dt', y='num_active_users', hue='subreddit', data=df)
