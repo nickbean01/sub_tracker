@@ -1,4 +1,7 @@
 # Sub Tracker
 
-A tool used to track subreddit information. Currently tracks number of active users.
+A tool used to track subreddit information. 
 
+Checks every minute for:
+- number of active users
+- number of subscribers
