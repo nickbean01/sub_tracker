@@ -127,7 +127,7 @@ def get_subreddit_info(sub):
         # get subreddit_id from subreddits table
         sub_df = pd.read_sql_query(sql.get_subreddit.format(sub), con)
         if len(sub_df.index) == 0:
-            insert_new_subreddit()
+            add_new_subreddit(sub)
             sub_df = pd.read_sql_query(sql.get_subreddit.format(sub), con)
         sub_id = sub_df.iloc[0, 0]
 
